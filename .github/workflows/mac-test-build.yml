@@ -1,0 +1,69 @@
+name: Mac test build
+
+# Manual test builds of any branch for Apple Silicon. Unsigned, never released;
+# the .dmg is attached to the run as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to build
+        required: true
+        default: master
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build aarch64-apple-darwin
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust target
+        run: rustup target add aarch64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: aarch64-apple-darwin
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app bundle
+        working-directory: client
+        env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+        run: pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg --no-sign
+
+      - name: Record build provenance
+        run: |
+          {
+            echo "ref=${{ inputs.ref }}"
+            echo "commit=$(git rev-parse HEAD)"
+            echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > target/aarch64-apple-darwin/release/bundle/dmg/BUILD_INFO.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nightingale-macOS-arm64-${{ github.run_number }}
+          path: |
+            target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            target/aarch64-apple-darwin/release/bundle/dmg/BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 14
