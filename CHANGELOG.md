@@ -16,6 +16,7 @@ below.
 ### Features
 
 - The lyrics editor pre-fills from a `.lrc` / `.elrc` file next to a local song's audio when the song has no lyrics yet, and offers a **Use local .lrc** action otherwise; nothing is written until Save.
+- **Rescan library** now also picks up analyses that another machine left in a shared cache folder: songs already in the library whose stems and transcript exist in the cache are marked ready without re-running analysis, and a toast summarizes how many were updated.
 
 ### Fixes
 
